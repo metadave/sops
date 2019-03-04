@@ -301,6 +301,19 @@ func main() {
 			Usage: "encrypt a file and output the result to stdout",
 		},
 		cli.BoolFlag{
+			Name:  "exec, x",
+			Usage: "Execute a cmd",
+		},
+		cli.StringFlag{
+			Name:  "exec-env",
+			Usage: "Env var to set",
+		},
+		cli.StringFlag{
+			Name:  "exec-cmd",
+			Usage: "Cmd to run",
+		},
+
+		cli.BoolFlag{
 			Name:  "rotate, r",
 			Usage: "generate a new data encryption key and reencrypt all values with the new key",
 		},
@@ -575,7 +588,34 @@ func main() {
 			})
 		}
 
-		isEditMode := !c.Bool("encrypt") && !c.Bool("decrypt") && !c.Bool("rotate") && c.String("set") == ""
+		if c.Bool("exec") {
+			_, statErr := os.Stat(fileName)
+			fileExists := statErr == nil
+			cmdargs := strings.Split(c.String("exec-cmd"), " ")
+			opts := execCmdOpts{
+				OutputStore:    outputStore,
+				InputStore:     inputStore,
+				InputPath:      fileName,
+				Cipher:         aes.NewCipher(),
+				KeyServices:    svcs,
+				IgnoreMAC:      c.Bool("ignore-mac"),
+				ShowMasterKeys: c.Bool("show-master-keys"),
+				EnvName:        c.String("exec-env"),
+				Cmd:            cmdargs,
+			}
+			if fileExists {
+				output, err = execCmd(opts)
+			} else {
+				fmt.Println("File does not exist")
+			}
+			if err != nil {
+				return toExitError(err)
+			} else {
+				return nil
+			}
+		}
+
+		isEditMode := !c.Bool("exec") && !c.Bool("encrypt") && !c.Bool("decrypt") && !c.Bool("rotate") && c.String("set") == ""
 		if isEditMode {
 			_, statErr := os.Stat(fileName)
 			fileExists := statErr == nil
